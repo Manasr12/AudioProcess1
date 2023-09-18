@@ -85,4 +85,5 @@ public:
 	afx_msg void OnUpdateProcessAudiooutput(CCmdUI *pCmdUI);
 	afx_msg void OnProcessCopy();
 	afx_msg void OnProcessParameters();
+	afx_msg void OnRampRamp();
 };

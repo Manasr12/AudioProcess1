@@ -64,6 +64,7 @@ BEGIN_MESSAGE_MAP(CAudioProcessDoc, CDocument)
 	ON_UPDATE_COMMAND_UI(ID_PROCESS_AUDIOOUTPUT, &CAudioProcessDoc::OnUpdateProcessAudiooutput)
 	ON_COMMAND(ID_PROCESS_COPY, &CAudioProcessDoc::OnProcessCopy)
 	ON_COMMAND(ID_PROCESS_PARAMETERS, &CAudioProcessDoc::OnProcessParameters)
+	ON_COMMAND(ID_RAMP_RAMP, &CAudioProcessDoc::OnRampRamp)
 END_MESSAGE_MAP()
 
 
@@ -359,4 +360,41 @@ void CAudioProcessDoc::OnProcessParameters()
    {
       m_amplitude = dlg.m_amplitude;
    }
+}
+
+
+void CAudioProcessDoc::OnRampRamp()
+{
+	// Call to open the processing output
+	if (!ProcessBegin())
+		return;
+
+	short audio[2];
+	double time = 0;
+
+	for (int i = 0; i < SampleFrames(); i++, time += 1.0 / SampleRate())
+	{
+		ProcessReadFrame(audio);
+		double ramp;
+		if (time < 0.5)
+		{
+			ramp = time / 0.5;
+		}
+		else
+		{
+			ramp = 1;
+		}
+		audio[0] = short(audio[0] * m_amplitude * ramp);
+		audio[1] = short(audio[1] * m_amplitude * ramp);
+
+		ProcessWriteFrame(audio);
+
+		// The progress control
+		if (!ProcessProgress(double(i) / SampleFrames()))
+			break;
+	}
+
+
+	// Call to close the generator output
+	ProcessEnd();
 }

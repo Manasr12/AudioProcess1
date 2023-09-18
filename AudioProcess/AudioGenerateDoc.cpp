@@ -378,11 +378,12 @@ void CAudioGenerateDoc::OnGenerate2345()
 	{
 		audio[0] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
 		audio[1] = short(m_amplitude * sin(time * 2 * M_PI * m_freq2));
-		for (int i = 2; i != 5; i++)
+		for (int i = 2; i != 6; i++)
 		{
 			audio[0] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq1 * i));
 			audio[1] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq2 * i));
 		}
+		
 		GenerateWriteFrame(audio);
 		// The progress control
 		if (!GenerateProgress(time / m_duration))
