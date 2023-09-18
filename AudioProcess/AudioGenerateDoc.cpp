@@ -20,7 +20,7 @@
 #endif
 
 // CAudioGenerateDoch
-
+//
 IMPLEMENT_DYNCREATE(CAudioGenerateDoc, CDocument)
 
 BEGIN_MESSAGE_MAP(CAudioGenerateDoc, CDocument)
