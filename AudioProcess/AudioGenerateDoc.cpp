@@ -32,6 +32,7 @@ BEGIN_MESSAGE_MAP(CAudioGenerateDoc, CDocument)
 	ON_UPDATE_COMMAND_UI(ID_GENERATE_AUDIOOUTPUT, &CAudioGenerateDoc::OnUpdateGenerateAudiooutput)
 	ON_COMMAND(ID_GENERATE_SINEWAVES, &CAudioGenerateDoc::OnGenerateSinewaves)
 	ON_COMMAND(ID_GENERATE_2345, &CAudioGenerateDoc::OnGenerate2345)
+	ON_COMMAND(ID_GENERATE_3579, &CAudioGenerateDoc::OnGenerate3579)
 END_MESSAGE_MAP()
 
 
@@ -378,6 +379,31 @@ void CAudioGenerateDoc::OnGenerate2345()
 		audio[0] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
 		audio[1] = short(m_amplitude * sin(time * 2 * M_PI * m_freq2));
 		for (int i = 2; i != 5; i++)
+		{
+			audio[0] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq1 * i));
+			audio[1] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq2 * i));
+		}
+		GenerateWriteFrame(audio);
+		// The progress control
+		if (!GenerateProgress(time / m_duration))
+			break;
+	}
+	// Call to close the generator output
+	GenerateEnd();
+}
+
+
+void CAudioGenerateDoc::OnGenerate3579()
+{
+	// TODO: Add your command handler code here
+	if (!GenerateBegin())
+		return;
+	short audio[2];
+	for (double time = 0.; time < m_duration; time += 1. / m_sampleRate)
+	{
+		audio[0] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
+		audio[1] = short(m_amplitude * sin(time * 2 * M_PI * m_freq2));
+		for (int i = 3; i != 9; i += 2)
 		{
 			audio[0] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq1 * i));
 			audio[1] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq2 * i));
