@@ -85,4 +85,6 @@ public:
 	afx_msg void OnUpdateGenerateFileoutput(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateGenerateAudiooutput(CCmdUI *pCmdUI);
 	afx_msg void OnSinewavesWaves();
+	afx_msg void OnGenerateSinewaves();
+	afx_msg void OnGenerate2345();
 };

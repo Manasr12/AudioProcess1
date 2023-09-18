@@ -30,7 +30,8 @@ BEGIN_MESSAGE_MAP(CAudioGenerateDoc, CDocument)
 	ON_COMMAND(ID_GEN_PARAMETERS, &CAudioGenerateDoc::OnGenParameters)
 	ON_UPDATE_COMMAND_UI(ID_GENERATE_FILEOUTPUT, &CAudioGenerateDoc::OnUpdateGenerateFileoutput)
 	ON_UPDATE_COMMAND_UI(ID_GENERATE_AUDIOOUTPUT, &CAudioGenerateDoc::OnUpdateGenerateAudiooutput)
-	ON_COMMAND(ID_SINEWAVES_WAVES, &CAudioGenerateDoc::OnSinewavesWaves)
+	ON_COMMAND(ID_GENERATE_SINEWAVES, &CAudioGenerateDoc::OnGenerateSinewaves)
+	ON_COMMAND(ID_GENERATE_2345, &CAudioGenerateDoc::OnGenerate2345)
 END_MESSAGE_MAP()
 
 
@@ -337,9 +338,10 @@ void CAudioGenerateDoc::OnUpdateGenerateAudiooutput(CCmdUI *pCmdUI)
 
 
 
-void CAudioGenerateDoc::OnSinewavesWaves()
-{
 
+
+void CAudioGenerateDoc::OnGenerateSinewaves()
+{
 	// Call to open the generator output
 	if (!GenerateBegin())
 		return;
@@ -348,8 +350,9 @@ void CAudioGenerateDoc::OnSinewavesWaves()
 
 	for (double time = 0.; time < m_duration; time += 1. / m_sampleRate)
 	{
-		audio[0] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
-		audio[1] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
+		short sample = short(m_amplitude * (sin(time * 2 * M_PI * m_freq1) + sin(time * 2 * M_PI * m_freq2)));
+		audio[0] = sample;
+		audio[1] = sample;
 
 		GenerateWriteFrame(audio);
 
@@ -359,6 +362,31 @@ void CAudioGenerateDoc::OnSinewavesWaves()
 	}
 
 
+	// Call to close the generator output
+	GenerateEnd();
+}
+
+
+void CAudioGenerateDoc::OnGenerate2345()
+{
+	// TODO: Add your command handler code here
+	if (!GenerateBegin())
+		return;
+	short audio[2];
+	for (double time = 0.; time < m_duration; time += 1. / m_sampleRate)
+	{
+		audio[0] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
+		audio[1] = short(m_amplitude * sin(time * 2 * M_PI * m_freq2));
+		for (int i = 2; i != 5; i++)
+		{
+			audio[0] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq1 * i));
+			audio[1] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq2 * i));
+		}
+		GenerateWriteFrame(audio);
+		// The progress control
+		if (!GenerateProgress(time / m_duration))
+			break;
+	}
 	// Call to close the generator output
 	GenerateEnd();
 }
