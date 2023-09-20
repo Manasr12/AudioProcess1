@@ -68,6 +68,8 @@ BEGIN_MESSAGE_MAP(CAudioProcessDoc, CDocument)
 	ON_COMMAND(ID_RAMP_RAMPIN, &CAudioProcessDoc::OnRampRampin)
 	ON_COMMAND(ID_TREMELO_TREMELO, &CAudioProcessDoc::OnTremeloTremelo)
 	ON_COMMAND(ID_HALFSPEED_HALFSPEED, &CAudioProcessDoc::OnHalfspeedHalfspeed)
+	ON_COMMAND(ID_DOUBLESPEED_DOUBLESPEED, &CAudioProcessDoc::OnDoublespeedDoublespeed)
+	ON_COMMAND(ID_BACKWARDS_BACKWARDS, &CAudioProcessDoc::OnBackwardsBackwards)
 END_MESSAGE_MAP()
 
 
@@ -405,27 +407,27 @@ void CAudioProcessDoc::OnRampRamp()
 
 void CAudioProcessDoc::OnRampRampin()
 {
-	// Call to open the processing output
+
 	if (!ProcessBegin())
 		return;
 
 	short audio[2];
 	double time = 0;
-	double fade_in_duration = 0.75;
-	double fade_out_duration = 0.85;
-	double total_duration = double(SampleFrames()) / SampleRate();
-
-	for (int i = 0; i < SampleFrames(); i++, time += 1.0 / SampleRate())
+	double inFade = 0.75;
+	double outFade = 0.85;
+	double Total = double(SampleFrames()) / SampleRate();
+	int i = 0;
+	while (i < SampleFrames())
 	{
 		ProcessReadFrame(audio);
 		double ramp;
-		if (time < fade_in_duration)
+		if (time < inFade)
 		{
-			ramp = time / fade_in_duration;
+			ramp = time / inFade;
 		}
-		else if (time > total_duration - fade_out_duration)
+		else if (time > Total - outFade)
 		{
-			ramp = (total_duration - time) / fade_out_duration;
+			ramp = (Total - time) / outFade;
 		}
 		else
 		{
@@ -436,19 +438,22 @@ void CAudioProcessDoc::OnRampRampin()
 
 		ProcessWriteFrame(audio);
 
-		// The progress control
+
 		if (!ProcessProgress(double(i) / SampleFrames()))
 			break;
+
+		time += 1.0 / SampleRate();
+		i++;
 	}
 
-	// Call to close the generator output
+
 	ProcessEnd();
 }
 
 
 void CAudioProcessDoc::OnTremeloTremelo()
 {
-	// Call to open the processing output
+
 	if (!ProcessBegin())
 		return;
 
@@ -460,18 +465,17 @@ void CAudioProcessDoc::OnTremeloTremelo()
 	for (int i = 0; i < SampleFrames(); i++, time += 1.0 / SampleRate())
 	{
 		ProcessReadFrame(audio);
-		double tremolo = 1 + depth * sin(frequency * 2 * M_PI * time);
-		audio[0] = short(audio[0] * tremolo);
-		audio[1] = short(audio[1] * tremolo);
+		audio[0] = short(audio[0] * 1 + depth * sin(frequency * 2 * M_PI * time));
+		audio[1] = short(audio[1] * 1 + depth * sin(frequency * 2 * M_PI * time));
 
 		ProcessWriteFrame(audio);
 
-		// The progress control
+	
 		if (!ProcessProgress(double(i) / SampleFrames()))
 			break;
 	}
 
-	// Call to close the generator output
+
 	ProcessEnd();
 }
 
@@ -483,31 +487,27 @@ void CAudioProcessDoc::OnHalfspeedHalfspeed()
 		return;
 
 	short audio[2];
-	short prev_audio[2];
-	prev_audio[0] = 0;
-	prev_audio[1] = 0;
+	short audioNew[2];
+	audioNew[0] = 0;
+	audioNew[1] = 0;
 	int i = 0;
 
 	while (i < SampleFrames())
 	{
 		ProcessReadFrame(audio);
 
-		// Write the previous frame to the output
-		ProcessWriteFrame(prev_audio);
+		ProcessWriteFrame(audioNew);
 
-		// Calculate the average of the current and previous frame
-		short avg_audio[2];
-		avg_audio[0] = short((audio[0] + prev_audio[0]) / 2);
-		avg_audio[1] = short((audio[1] + prev_audio[1]) / 2);
+		short audioAverage[2];
+		audioAverage[0] = short((audio[0] + audioNew[0]) / 2);
+		audioAverage[1] = short((audio[1] + audioNew[1]) / 2);
 
-		// Write the average frame to the output
-		ProcessWriteFrame(avg_audio);
+		ProcessWriteFrame(audioAverage);
 
-		// Store the current frame as the previous frame for the next iteration
-		prev_audio[0] = audio[0];
-		prev_audio[1] = audio[1];
+		audioNew[0] = audio[0];
+		audioNew[1] = audio[1];
 
-		// The progress control
+
 		if (!ProcessProgress(double(i) / SampleFrames()))
 			break;
 
@@ -516,4 +516,73 @@ void CAudioProcessDoc::OnHalfspeedHalfspeed()
 
 	// Call to close the generator output
 	ProcessEnd();
+}
+
+
+void CAudioProcessDoc::OnDoublespeedDoublespeed()
+{
+	// Call to open the processing output
+		if (!ProcessBegin())
+			return;
+
+	short audio1[2];
+	short audio2[2];
+	short output[2];
+	int i = 0;
+
+	while(i < SampleFrames())
+	{
+	
+		ProcessReadFrame(audio1);
+		ProcessReadFrame(audio2);
+
+
+		output[0] = short((audio1[0] + audio2[0]) / 2);
+		output[1] = short((audio1[1] + audio2[1]) / 2);
+		ProcessWriteFrame(output);
+
+		if (!ProcessProgress(double(i) / SampleFrames()))
+			break;
+		i += 2;
+	}
+
+
+	ProcessEnd();
+}
+
+
+void CAudioProcessDoc::OnBackwardsBackwards()
+{
+	if (!ProcessBegin())
+		return;
+
+	short* audio[2];
+	audio[0] = new short[SampleFrames()];
+	audio[1] = new short[SampleFrames()];
+	short AllFrames[2];
+	
+	for (int i = 0; i < SampleFrames(); i++)
+	{
+		ProcessReadFrame(AllFrames);
+		audio[0][i] = AllFrames[0];
+		audio[1][i] = AllFrames[1];
+	}
+
+	for (int i = SampleFrames() - 1; i >= 0; i--)
+	{
+		AllFrames[0] = audio[0][i];
+		AllFrames[1] = audio[1][i];
+		ProcessWriteFrame(AllFrames);
+
+
+		if (!ProcessProgress(double(SampleFrames() - i) / SampleFrames()))
+			break;
+	}
+
+
+	ProcessEnd();
+
+	// Deallocate the memory
+	delete[] audio[0];
+	delete[] audio[1];
 }

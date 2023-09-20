@@ -89,4 +89,6 @@ public:
 	afx_msg void OnRampRampin();
 	afx_msg void OnTremeloTremelo();
 	afx_msg void OnHalfspeedHalfspeed();
+	afx_msg void OnDoublespeedDoublespeed();
+	afx_msg void OnBackwardsBackwards();
 };
