@@ -34,6 +34,7 @@ BEGIN_MESSAGE_MAP(CAudioGenerateDoc, CDocument)
 	ON_COMMAND(ID_GENERATE_2345, &CAudioGenerateDoc::OnGenerate2345)
 	ON_COMMAND(ID_GENERATE_3579, &CAudioGenerateDoc::OnGenerate3579)
 	ON_COMMAND(ID_GENERATE_ALLHARMONICS, &CAudioGenerateDoc::OnGenerateAllharmonics)
+	ON_COMMAND(ID_GENERATE_ODDHARMONICS, &CAudioGenerateDoc::OnGenerateOddharmonics)
 END_MESSAGE_MAP()
 
 
@@ -374,49 +375,62 @@ void CAudioGenerateDoc::OnGenerate2345()
 	// TODO: Add your command handler code here
 	if (!GenerateBegin())
 		return;
+
 	short audio[2];
+
 	for (double time = 0.; time < m_duration; time += 1. / m_sampleRate)
 	{
-		audio[0] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
-		audio[1] = short(m_amplitude * sin(time * 2 * M_PI * m_freq2));
-		for (int i = 2; i != 6; i++)
+		audio[0] = audio[1] = 0;
+
+		for (int i = 1; i <= 5; i++)
 		{
-			audio[0] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq1 * i));
-			audio[1] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq2 * i));
-		}
 		
+			double sinCalc1 = sin(time * 2 * M_PI * m_freq1 * i);
+			double sinCalc2 = sin(time * 2 * M_PI * m_freq2 * i);
+			audio[0] += short(m_amplitude / i * sinCalc1);
+			audio[1] += short(m_amplitude / i * sinCalc2);
+		}
+
 		GenerateWriteFrame(audio);
+
 		// The progress control
 		if (!GenerateProgress(time / m_duration))
 			break;
 	}
-	// Call to close the generator output
+
 	GenerateEnd();
+
 }
 
 
 void CAudioGenerateDoc::OnGenerate3579()
 {
-	// TODO: Add your command handler code here
 	if (!GenerateBegin())
 		return;
+
 	short audio[2];
+
 	for (double time = 0.; time < m_duration; time += 1. / m_sampleRate)
 	{
-		audio[0] = short(m_amplitude * sin(time * 2 * M_PI * m_freq1));
-		audio[1] = short(m_amplitude * sin(time * 2 * M_PI * m_freq2));
-		for (int i = 3; i != 9; i += 2)
+		audio[0] = audio[1] = 0;
+
+		for (int i = 3; i <= 9; i += 2)
 		{
-			audio[0] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq1 * i));
-			audio[1] += short(m_amplitude / i * sin(time * 2 * M_PI * m_freq2 * i));
+			double sinCalc1 = sin(time * 2 * M_PI * m_freq1 * i);
+			double sinCalc2 = sin(time * 2 * M_PI * m_freq2 * i);
+			audio[0] += short(m_amplitude / i * sinCalc1);
+			audio[1] += short(m_amplitude / i * sinCalc2);
 		}
+
 		GenerateWriteFrame(audio);
+
 		// The progress control
 		if (!GenerateProgress(time / m_duration))
 			break;
 	}
-	// Call to close the generator output
+
 	GenerateEnd();
+
 }
 
 
@@ -426,29 +440,71 @@ void CAudioGenerateDoc::OnGenerateAllharmonics()
 		return;
 
 	short audio[2];
-	double timeStep = 1. / m_sampleRate;
-	double twoPi = 2 * M_PI;
+	double pi2 = 2 * M_PI;
 
-	for (double time = 0; time < m_duration; time += timeStep)
+	for (double time = 0; time < m_duration; time += 1. / m_sampleRate)
 	{
-		int harmonicIndex = 1;
-		double sinTimeFreq1 = sin(time * twoPi * m_freq1);
-		double sinTimeFreq2 = sin(time * twoPi * m_freq2);
+		int i = 1;
+		double sinCalc1 = sin(time * pi2 * m_freq1);
+		double sinCalc2 = sin(time * pi2 * m_freq2);
 
-		audio[0] = short(m_amplitude * sinTimeFreq1);
-		audio[1] = short(m_amplitude * sinTimeFreq2);
+		audio[0] = short(m_amplitude * sinCalc1);
+		audio[1] = short(m_amplitude * sinCalc2);
+
+		int newfreq = (int)m_freq1;
+		while (newfreq < int(m_sampleRate / 2))
+		{
+			double sin_base = sin(time * pi2 * newfreq);
+			short sample = short(m_amplitude / i * sin_base);
+
+			audio[0] += sample;
+			audio[1] += sample;
+			i++;
+
+			newfreq = int(m_freq1 * i);
+		}
+
+		GenerateWriteFrame(audio);
+
+		if (!GenerateProgress(time / m_duration))
+			break;
+	}
+
+	GenerateEnd();
+}
+
+
+void CAudioGenerateDoc::OnGenerateOddharmonics()
+{
+	if(!GenerateBegin())
+		return;
+
+	short audio[2];
+	double pi2 = 2 * M_PI;
+
+	for (double time = 0; time < m_duration; time += 1. / m_sampleRate)
+	{
+		int i = 1;
+		double sinCalc1 = sin(time * pi2 * m_freq1);
+		double sinCalc2 = sin(time * pi2 * m_freq2);
+		audio[0] = short(m_amplitude * sinCalc1);
+		audio[1] = short(m_amplitude * sinCalc2);
+
 
 		int baseFreq = (int)m_freq1;
 		while (baseFreq < int(m_sampleRate / 2))
 		{
-			double sinTimeBaseFreq = sin(time * twoPi * baseFreq);
-			short harmonic = short(m_amplitude / harmonicIndex * sinTimeBaseFreq);
+			if (i % 2 != 0) 
+			{
+				double sin_base = sin(time * pi2 * baseFreq);
+				short sample = short((m_amplitude / i) * sin_base);
 
-			audio[0] += harmonic;
-			audio[1] += harmonic;
-			harmonicIndex++;
+				audio[0] += sample;
+				audio[1] += sample;
+			}
+			i++;
 
-			baseFreq = int(m_freq1 * harmonicIndex);
+			baseFreq = int(m_freq1 * i);
 		}
 
 		GenerateWriteFrame(audio);
