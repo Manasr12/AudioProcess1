@@ -88,4 +88,5 @@ public:
 	afx_msg void OnGenerateSinewaves();
 	afx_msg void OnGenerate2345();
 	afx_msg void OnGenerate3579();
+	afx_msg void OnGenerateAllharmonics();
 };

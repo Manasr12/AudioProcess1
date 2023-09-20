@@ -33,6 +33,7 @@ BEGIN_MESSAGE_MAP(CAudioGenerateDoc, CDocument)
 	ON_COMMAND(ID_GENERATE_SINEWAVES, &CAudioGenerateDoc::OnGenerateSinewaves)
 	ON_COMMAND(ID_GENERATE_2345, &CAudioGenerateDoc::OnGenerate2345)
 	ON_COMMAND(ID_GENERATE_3579, &CAudioGenerateDoc::OnGenerate3579)
+	ON_COMMAND(ID_GENERATE_ALLHARMONICS, &CAudioGenerateDoc::OnGenerateAllharmonics)
 END_MESSAGE_MAP()
 
 
@@ -415,5 +416,46 @@ void CAudioGenerateDoc::OnGenerate3579()
 			break;
 	}
 	// Call to close the generator output
+	GenerateEnd();
+}
+
+
+void CAudioGenerateDoc::OnGenerateAllharmonics()
+{
+	if(!GenerateBegin())
+		return;
+
+	short audio[2];
+	double timeStep = 1. / m_sampleRate;
+	double twoPi = 2 * M_PI;
+
+	for (double time = 0; time < m_duration; time += timeStep)
+	{
+		int harmonicIndex = 1;
+		double sinTimeFreq1 = sin(time * twoPi * m_freq1);
+		double sinTimeFreq2 = sin(time * twoPi * m_freq2);
+
+		audio[0] = short(m_amplitude * sinTimeFreq1);
+		audio[1] = short(m_amplitude * sinTimeFreq2);
+
+		int baseFreq = (int)m_freq1;
+		while (baseFreq < int(m_sampleRate / 2))
+		{
+			double sinTimeBaseFreq = sin(time * twoPi * baseFreq);
+			short harmonic = short(m_amplitude / harmonicIndex * sinTimeBaseFreq);
+
+			audio[0] += harmonic;
+			audio[1] += harmonic;
+			harmonicIndex++;
+
+			baseFreq = int(m_freq1 * harmonicIndex);
+		}
+
+		GenerateWriteFrame(audio);
+
+		if (!GenerateProgress(time / m_duration))
+			break;
+	}
+
 	GenerateEnd();
 }
