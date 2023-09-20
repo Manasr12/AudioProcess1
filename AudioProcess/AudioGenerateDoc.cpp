@@ -380,20 +380,21 @@ void CAudioGenerateDoc::OnGenerate2345()
 
 	for (double time = 0.; time < m_duration; time += 1. / m_sampleRate)
 	{
-		audio[0] = audio[1] = 0;
-
+		audio[0] = 0;
+		audio[1] = 0;
+		double pi2 = 2 * M_PI;
 		for (int i = 1; i <= 5; i++)
 		{
 		
-			double sinCalc1 = sin(time * 2 * M_PI * m_freq1 * i);
-			double sinCalc2 = sin(time * 2 * M_PI * m_freq2 * i);
+			double sinCalc1 = sin(time * pi2 * m_freq1 * i);
+			double sinCalc2 = sin(time * pi2 * m_freq2 * i);
 			audio[0] += short(m_amplitude / i * sinCalc1);
 			audio[1] += short(m_amplitude / i * sinCalc2);
 		}
 
 		GenerateWriteFrame(audio);
 
-		// The progress control
+
 		if (!GenerateProgress(time / m_duration))
 			break;
 	}
@@ -412,19 +413,20 @@ void CAudioGenerateDoc::OnGenerate3579()
 
 	for (double time = 0.; time < m_duration; time += 1. / m_sampleRate)
 	{
-		audio[0] = audio[1] = 0;
-
+		audio[0] = 0;
+		audio[1] = 0;
+		double pi2 = 2 * M_PI;
 		for (int i = 3; i <= 9; i += 2)
 		{
-			double sinCalc1 = sin(time * 2 * M_PI * m_freq1 * i);
-			double sinCalc2 = sin(time * 2 * M_PI * m_freq2 * i);
+			double sinCalc1 = sin(time * pi2 * m_freq1 * i);
+			double sinCalc2 = sin(time * pi2 * m_freq2 * i);
 			audio[0] += short(m_amplitude / i * sinCalc1);
 			audio[1] += short(m_amplitude / i * sinCalc2);
 		}
 
 		GenerateWriteFrame(audio);
 
-		// The progress control
+	
 		if (!GenerateProgress(time / m_duration))
 			break;
 	}

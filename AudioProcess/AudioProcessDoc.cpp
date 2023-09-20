@@ -582,7 +582,6 @@ void CAudioProcessDoc::OnBackwardsBackwards()
 
 	ProcessEnd();
 
-	// Deallocate the memory
-	delete[] audio[0];
-	delete[] audio[1];
+	delete audio[0];
+	delete audio[1];
 }
