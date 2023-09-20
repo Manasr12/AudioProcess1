@@ -65,6 +65,9 @@ BEGIN_MESSAGE_MAP(CAudioProcessDoc, CDocument)
 	ON_COMMAND(ID_PROCESS_COPY, &CAudioProcessDoc::OnProcessCopy)
 	ON_COMMAND(ID_PROCESS_PARAMETERS, &CAudioProcessDoc::OnProcessParameters)
 	ON_COMMAND(ID_RAMP_RAMP, &CAudioProcessDoc::OnRampRamp)
+	ON_COMMAND(ID_RAMP_RAMPIN, &CAudioProcessDoc::OnRampRampin)
+	ON_COMMAND(ID_TREMELO_TREMELO, &CAudioProcessDoc::OnTremeloTremelo)
+	ON_COMMAND(ID_HALFSPEED_HALFSPEED, &CAudioProcessDoc::OnHalfspeedHalfspeed)
 END_MESSAGE_MAP()
 
 
@@ -394,6 +397,122 @@ void CAudioProcessDoc::OnRampRamp()
 			break;
 	}
 
+
+	// Call to close the generator output
+	ProcessEnd();
+}
+
+
+void CAudioProcessDoc::OnRampRampin()
+{
+	// Call to open the processing output
+	if (!ProcessBegin())
+		return;
+
+	short audio[2];
+	double time = 0;
+	double fade_in_duration = 0.75;
+	double fade_out_duration = 0.85;
+	double total_duration = double(SampleFrames()) / SampleRate();
+
+	for (int i = 0; i < SampleFrames(); i++, time += 1.0 / SampleRate())
+	{
+		ProcessReadFrame(audio);
+		double ramp;
+		if (time < fade_in_duration)
+		{
+			ramp = time / fade_in_duration;
+		}
+		else if (time > total_duration - fade_out_duration)
+		{
+			ramp = (total_duration - time) / fade_out_duration;
+		}
+		else
+		{
+			ramp = 1;
+		}
+		audio[0] = short(audio[0] * m_amplitude * ramp);
+		audio[1] = short(audio[1] * m_amplitude * ramp);
+
+		ProcessWriteFrame(audio);
+
+		// The progress control
+		if (!ProcessProgress(double(i) / SampleFrames()))
+			break;
+	}
+
+	// Call to close the generator output
+	ProcessEnd();
+}
+
+
+void CAudioProcessDoc::OnTremeloTremelo()
+{
+	// Call to open the processing output
+	if (!ProcessBegin())
+		return;
+
+	short audio[2];
+	double time = 0;
+	double depth = 0.45;
+	double frequency = 3.25;
+
+	for (int i = 0; i < SampleFrames(); i++, time += 1.0 / SampleRate())
+	{
+		ProcessReadFrame(audio);
+		double tremolo = 1 + depth * sin(frequency * 2 * M_PI * time);
+		audio[0] = short(audio[0] * tremolo);
+		audio[1] = short(audio[1] * tremolo);
+
+		ProcessWriteFrame(audio);
+
+		// The progress control
+		if (!ProcessProgress(double(i) / SampleFrames()))
+			break;
+	}
+
+	// Call to close the generator output
+	ProcessEnd();
+}
+
+
+void CAudioProcessDoc::OnHalfspeedHalfspeed()
+{
+	// Call to open the processing output
+	if (!ProcessBegin())
+		return;
+
+	short audio[2];
+	short prev_audio[2];
+	prev_audio[0] = 0;
+	prev_audio[1] = 0;
+	int i = 0;
+
+	while (i < SampleFrames())
+	{
+		ProcessReadFrame(audio);
+
+		// Write the previous frame to the output
+		ProcessWriteFrame(prev_audio);
+
+		// Calculate the average of the current and previous frame
+		short avg_audio[2];
+		avg_audio[0] = short((audio[0] + prev_audio[0]) / 2);
+		avg_audio[1] = short((audio[1] + prev_audio[1]) / 2);
+
+		// Write the average frame to the output
+		ProcessWriteFrame(avg_audio);
+
+		// Store the current frame as the previous frame for the next iteration
+		prev_audio[0] = audio[0];
+		prev_audio[1] = audio[1];
+
+		// The progress control
+		if (!ProcessProgress(double(i) / SampleFrames()))
+			break;
+
+		i++;
+	}
 
 	// Call to close the generator output
 	ProcessEnd();

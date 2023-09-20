@@ -491,12 +491,12 @@ void CAudioGenerateDoc::OnGenerateOddharmonics()
 		audio[1] = short(m_amplitude * sinCalc2);
 
 
-		int baseFreq = (int)m_freq1;
-		while (baseFreq < int(m_sampleRate / 2))
+		int newfreq = (int)m_freq1;
+		while (newfreq < int(m_sampleRate / 2))
 		{
 			if (i % 2 != 0) 
 			{
-				double sin_base = sin(time * pi2 * baseFreq);
+				double sin_base = sin(time * pi2 * newfreq);
 				short sample = short((m_amplitude / i) * sin_base);
 
 				audio[0] += sample;
@@ -504,7 +504,7 @@ void CAudioGenerateDoc::OnGenerateOddharmonics()
 			}
 			i++;
 
-			baseFreq = int(m_freq1 * i);
+			newfreq = int(m_freq1 * i);
 		}
 
 		GenerateWriteFrame(audio);

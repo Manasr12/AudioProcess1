@@ -86,4 +86,7 @@ public:
 	afx_msg void OnProcessCopy();
 	afx_msg void OnProcessParameters();
 	afx_msg void OnRampRamp();
+	afx_msg void OnRampRampin();
+	afx_msg void OnTremeloTremelo();
+	afx_msg void OnHalfspeedHalfspeed();
 };
