@@ -15,6 +15,7 @@
 #include <propkey.h>
 #include "mmsystem.h"
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -35,6 +36,7 @@ BEGIN_MESSAGE_MAP(CAudioGenerateDoc, CDocument)
 	ON_COMMAND(ID_GENERATE_3579, &CAudioGenerateDoc::OnGenerate3579)
 	ON_COMMAND(ID_GENERATE_ALLHARMONICS, &CAudioGenerateDoc::OnGenerateAllharmonics)
 	ON_COMMAND(ID_GENERATE_ODDHARMONICS, &CAudioGenerateDoc::OnGenerateOddharmonics)
+
 END_MESSAGE_MAP()
 
 
@@ -517,3 +519,6 @@ void CAudioGenerateDoc::OnGenerateOddharmonics()
 
 	GenerateEnd();
 }
+
+
+

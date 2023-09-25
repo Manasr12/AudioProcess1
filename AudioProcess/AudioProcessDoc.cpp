@@ -70,6 +70,8 @@ BEGIN_MESSAGE_MAP(CAudioProcessDoc, CDocument)
 	ON_COMMAND(ID_HALFSPEED_HALFSPEED, &CAudioProcessDoc::OnHalfspeedHalfspeed)
 	ON_COMMAND(ID_DOUBLESPEED_DOUBLESPEED, &CAudioProcessDoc::OnDoublespeedDoublespeed)
 	ON_COMMAND(ID_BACKWARDS_BACKWARDS, &CAudioProcessDoc::OnBackwardsBackwards)
+	ON_COMMAND(ID_TRANSFERLOAD_TRANSFERLOAD, &CAudioProcessDoc::OnTransferloadTransferload)
+	ON_COMMAND(ID_FILTER_FILTER, &CAudioProcessDoc::OnFilterFilter)
 END_MESSAGE_MAP()
 
 
@@ -584,4 +586,94 @@ void CAudioProcessDoc::OnBackwardsBackwards()
 
 	delete audio[0];
 	delete audio[1];
+}
+
+
+void CAudioProcessDoc::OnTransferloadTransferload()
+{
+	static WCHAR BASED_CODE szFilter[] = L"Filter Transfer Equation Files (*.tran)|*.tran|All Files (*.*)|*.*||";
+
+	CFileDialog dlg(TRUE, L".tran", NULL, 0, szFilter, NULL);
+	if (dlg.DoModal() != IDOK)
+		return;
+
+	ifstream filt(dlg.GetPathName());
+	if (filt.fail())
+	{
+		AfxMessageBox(L"Failed to open filter transfer equation file");
+		return;
+	}
+	m_xterms.clear();
+	m_yterms.clear();
+
+	int firstLine;
+
+	filt >> firstLine;
+	for (int i = 0; i < firstLine; i++)
+	{
+		FTerm fterm;
+		filt >> fterm.m_delay;
+		filt >> fterm.m_weight;
+		m_xterms.push_back(fterm);
+	}
+
+	filt >> firstLine;
+	for (int i = 0; i < firstLine; i++)
+	{
+		FTerm fterm;
+		filt >> fterm.m_delay;
+		filt >> fterm.m_weight;
+		m_yterms.push_back(fterm);
+	}
+
+	if (!ProcessBegin())
+		return;
+}
+
+
+void CAudioProcessDoc::OnFilterFilter()
+{
+	vector<short> queue;
+	if (!ProcessBegin())
+		return;
+
+	short audio[2];
+	const double delay = 1.0;
+	const int QUEUESIZE = int(delay * SampleRate() * 4);
+	queue.resize(QUEUESIZE);
+	int wrloc = 0;
+	double time = 0;
+
+	for (int i = 0; i < SampleFrames(); i++, time += 1. / SampleRate())
+	{
+		ProcessReadFrame(audio);
+		wrloc = (wrloc + 2) % QUEUESIZE;
+		queue[wrloc] = audio[0];
+		queue[wrloc + 1] = audio[1];
+		int delaylength = int((delay * SampleRate() + 0.5)) * 2;
+		int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
+		audio[0] = short(audio[0] * 0.5 + queue[rdloc++] * 0.5);
+		audio[1] = short(audio[1] * 0.5 + queue[rdloc] * 0.5);
+		ProcessWriteFrame(audio);
+
+		// The progress control
+		if (!ProcessProgress(double(i) / SampleFrames()))
+			break;
+	}
+
+	for (int i = 0; i < (delay * SampleRate()); i++, time += 1. / SampleRate())
+	{
+		wrloc = (wrloc + 2) % QUEUESIZE;
+		int delaylength = int((delay * SampleRate() + 0.5)) * 2;
+		int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
+		audio[0] = short(audio[0] * 0 + queue[rdloc++] * 0.5);
+		audio[1] = short(audio[1] * 0 + queue[rdloc] * 0.5);
+		ProcessWriteFrame(audio);
+
+		// The progress control
+		if (!ProcessProgress(double(i) / (delay * SampleRate())))
+			break;
+	}
+
+	ProcessEnd();// TODO: Add your command handler code here
 }

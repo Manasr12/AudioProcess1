@@ -77,6 +77,12 @@ private:
     int      m_numSampleFrames;
 
     CDirSoundStream  m_soundstream;
+	struct FTerm {
+		int m_delay;
+		double m_weight;
+	};
+	std::list<FTerm> m_xterms;
+	std::list<FTerm> m_yterms;
 public:
 	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
 	afx_msg void OnProcessFileoutput();
@@ -91,4 +97,6 @@ public:
 	afx_msg void OnHalfspeedHalfspeed();
 	afx_msg void OnDoublespeedDoublespeed();
 	afx_msg void OnBackwardsBackwards();
+	afx_msg void OnTransferloadTransferload();
+	afx_msg void OnFilterFilter();
 };

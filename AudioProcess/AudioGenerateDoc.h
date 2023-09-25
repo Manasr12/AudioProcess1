@@ -90,4 +90,5 @@ public:
 	afx_msg void OnGenerate3579();
 	afx_msg void OnGenerateAllharmonics();
 	afx_msg void OnGenerateOddharmonics();
+	afx_msg void OnTransferloadTransferload();
 };
