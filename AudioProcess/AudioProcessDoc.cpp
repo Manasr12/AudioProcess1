@@ -17,6 +17,7 @@
 
 #include <propkey.h>
 #include "filterdialog.h"
+#include <iostream>
 
 using namespace std;
 
@@ -611,24 +612,35 @@ void CAudioProcessDoc::OnTransferloadTransferload()
 
 	int firstLine;
 
-	filt >> firstLine;
-	for (int i = 0; i < firstLine; i++)
-	{
-		FTerm fterm;
-		filt >> fterm.m_delay;
-		filt >> fterm.m_weight;
-		m_xterms.push_back(fterm);
+	if (filt >> firstLine) {
+		int i = 0;
+		while (i < firstLine && filt) {
+			FTerm fterm;
+			if (filt >> fterm.m_delay >> fterm.m_weight) {
+				m_xterms.push_back(fterm);
+				i++;
+			}
+			else {
+				break; 
+			}
+		}
 	}
 
-	filt >> firstLine;
-	for (int i = 0; i < firstLine; i++)
-	{
-		FTerm fterm;
-		filt >> fterm.m_delay;
-		filt >> fterm.m_weight;
-		m_yterms.push_back(fterm);
+	if (filt >> firstLine) {
+		int i = 0;
+		while (i < firstLine && filt) {
+			FTerm fterm;
+			if (filt >> fterm.m_delay >> fterm.m_weight) {
+				m_yterms.push_back(fterm);
+				i++;
+			}
+			else {
+				break; 
+			}
+		}
 	}
 
+	filt.close();
 	
 }
 
@@ -638,50 +650,68 @@ void CAudioProcessDoc::OnFilterFilter()
 	if (!ProcessBegin())
 		return;
 
-	short audio[2];
-	int temp[2];
-	const int QUEUESIZE = int(SampleRate() * 20);
-	std::vector<short> queueX, queueY;
-	queueX.resize(QUEUESIZE);
-	queueY.resize(QUEUESIZE);
-	int wrloc = 0;
-	double time = 0;
+	short sound[2];
+	int tempVar[2];
+	const int QUEUE_LENGTH = int(SampleRate() * 20);
+	std::vector<short> bufferX, bufferY;
+	bufferX.resize(QUEUE_LENGTH);
+	bufferY.resize(QUEUE_LENGTH);
+	int writeLoc = 0;
+	double timeVar = 0;
 
-	for (int i = 0; i < SampleFrames(); i++, time += 1. / SampleRate())
+	int i = 0;
+	while (i < SampleFrames())
 	{
-		ProcessReadFrame(audio);
+		ProcessReadFrame(sound);
 
-		wrloc = (wrloc + 2) % QUEUESIZE;
-		queueX[wrloc] = audio[0] * m_amplitude;
-		queueX[wrloc + 1] = audio[1] * m_amplitude;
-		audio[0] = 0;
-		audio[1] = 0;
-		temp[0] = 0;
-		temp[1] = 0;
-		for (auto itr = m_xterms.begin(); itr != m_xterms.end(); itr++)
+		writeLoc = (writeLoc + 2) % QUEUE_LENGTH;
+		bufferX[writeLoc] = sound[0] * m_amplitude;
+		bufferX[writeLoc + 1] = sound[1] * m_amplitude;
+		sound[0] = 0;
+		sound[1] = 0;
+		tempVar[0] = 0;
+		tempVar[1] = 0;
+
+		auto xTermIter = m_xterms.begin();
+		auto yTermIter = m_yterms.begin();
+
+		while (xTermIter != m_xterms.end() || yTermIter != m_yterms.end())
 		{
-			int delaylength = int(itr->m_delay) * 2;
-			int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
-			temp[0] += int(queueX[rdloc] * itr->m_weight);
-			temp[1] += int(queueX[rdloc + 1] * itr->m_weight);
+			if (xTermIter != m_xterms.end())
+			{
+				int delayLength = int(xTermIter->m_delay) * 2;
+				int readLoc = (writeLoc + QUEUE_LENGTH - delayLength) % QUEUE_LENGTH;
+				tempVar[0] += int(bufferX[readLoc] * xTermIter->m_weight);
+				tempVar[1] += int(bufferX[readLoc + 1] * xTermIter->m_weight);
+				xTermIter++;
+			}
+
+			if (yTermIter != m_yterms.end())
+			{
+				int delayLength = int(yTermIter->m_delay) * 2;
+				int readLoc = (writeLoc + QUEUE_LENGTH - delayLength) % QUEUE_LENGTH;
+				tempVar[0] += int(bufferY[readLoc] * yTermIter->m_weight);
+				tempVar[1] += int(bufferY[readLoc + 1] * yTermIter->m_weight);
+				yTermIter++;
+			}
 		}
-		for (auto itr = m_yterms.begin(); itr != m_yterms.end(); itr++)
-		{
-			int delaylength = int(itr->m_delay) * 2;
-			int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
-			temp[0] += int(queueY[rdloc] * itr->m_weight);
-			temp[1] += int(queueY[rdloc + 1] * itr->m_weight);
-		}
-		audio[0] = short(float(temp[0]));
-		audio[1] = short(float(temp[1]));
-		queueY[wrloc] = audio[0];
-		queueY[wrloc + 1] = audio[1];
-		ProcessWriteFrame(audio);
+
+		sound[0] = short(float(tempVar[0]));
+		sound[1] = short(float(tempVar[1]));
+		bufferY[writeLoc] = sound[0];
+		bufferY[writeLoc + 1] = sound[1];
+
+		ProcessWriteFrame(sound);
 
 		if (!ProcessProgress(double(i) / SampleFrames()))
 			break;
+
+		i++;
+		timeVar += 1. / SampleRate();
 	}
+
 	ProcessEnd();
+	
 	
 }
 

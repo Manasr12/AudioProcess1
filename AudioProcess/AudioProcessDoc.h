@@ -85,6 +85,7 @@ private:
 	std::list<FTerm> m_yterms;
 	double m_f = 0;
 	double m_b = 0;
+	
 public:
 	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
 	afx_msg void OnProcessFileoutput();
