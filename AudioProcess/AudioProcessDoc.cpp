@@ -16,6 +16,7 @@
 #include <fstream>
 
 #include <propkey.h>
+#include "filterdialog.h"
 
 using namespace std;
 
@@ -72,6 +73,8 @@ BEGIN_MESSAGE_MAP(CAudioProcessDoc, CDocument)
 	ON_COMMAND(ID_BACKWARDS_BACKWARDS, &CAudioProcessDoc::OnBackwardsBackwards)
 	ON_COMMAND(ID_TRANSFERLOAD_TRANSFERLOAD, &CAudioProcessDoc::OnTransferloadTransferload)
 	ON_COMMAND(ID_FILTER_FILTER, &CAudioProcessDoc::OnFilterFilter)
+	ON_COMMAND(ID_RESONDIALOG_RESONDIALOG, &CAudioProcessDoc::OnResondialogResondialog)
+	ON_COMMAND(ID_RESONFILTER_RESONFILTER, &CAudioProcessDoc::OnResonfilterResonfilter)
 END_MESSAGE_MAP()
 
 
@@ -626,54 +629,149 @@ void CAudioProcessDoc::OnTransferloadTransferload()
 		m_yterms.push_back(fterm);
 	}
 
-	if (!ProcessBegin())
-		return;
+	
 }
 
 
 void CAudioProcessDoc::OnFilterFilter()
 {
-	vector<short> queue;
 	if (!ProcessBegin())
 		return;
 
 	short audio[2];
-	const double delay = 1.0;
-	const int QUEUESIZE = int(delay * SampleRate() * 4);
-	queue.resize(QUEUESIZE);
+	int temp[2];
+	const int QUEUESIZE = int(SampleRate() * 20);
+	std::vector<short> queueX, queueY;
+	queueX.resize(QUEUESIZE);
+	queueY.resize(QUEUESIZE);
 	int wrloc = 0;
 	double time = 0;
 
 	for (int i = 0; i < SampleFrames(); i++, time += 1. / SampleRate())
 	{
 		ProcessReadFrame(audio);
+
 		wrloc = (wrloc + 2) % QUEUESIZE;
-		queue[wrloc] = audio[0];
-		queue[wrloc + 1] = audio[1];
-		int delaylength = int((delay * SampleRate() + 0.5)) * 2;
-		int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
-		audio[0] = short(audio[0] * 0.5 + queue[rdloc++] * 0.5);
-		audio[1] = short(audio[1] * 0.5 + queue[rdloc] * 0.5);
+		queueX[wrloc] = audio[0] * m_amplitude;
+		queueX[wrloc + 1] = audio[1] * m_amplitude;
+		audio[0] = 0;
+		audio[1] = 0;
+		temp[0] = 0;
+		temp[1] = 0;
+		for (auto itr = m_xterms.begin(); itr != m_xterms.end(); itr++)
+		{
+			int delaylength = int(itr->m_delay) * 2;
+			int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
+			temp[0] += int(queueX[rdloc] * itr->m_weight);
+			temp[1] += int(queueX[rdloc + 1] * itr->m_weight);
+		}
+		for (auto itr = m_yterms.begin(); itr != m_yterms.end(); itr++)
+		{
+			int delaylength = int(itr->m_delay) * 2;
+			int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
+			temp[0] += int(queueY[rdloc] * itr->m_weight);
+			temp[1] += int(queueY[rdloc + 1] * itr->m_weight);
+		}
+		audio[0] = short(float(temp[0]));
+		audio[1] = short(float(temp[1]));
+		queueY[wrloc] = audio[0];
+		queueY[wrloc + 1] = audio[1];
 		ProcessWriteFrame(audio);
 
-		// The progress control
 		if (!ProcessProgress(double(i) / SampleFrames()))
 			break;
 	}
+	ProcessEnd();
+	
+}
 
-	for (int i = 0; i < (delay * SampleRate()); i++, time += 1. / SampleRate())
+
+void CAudioProcessDoc::OnResondialogResondialog()
+{
+	filterdialog dlg;
+
+	dlg.m_frequency = m_f;
+	dlg.m_bandwidth = m_b;
+	
+
+	if (dlg.DoModal() == IDOK)
 	{
-		wrloc = (wrloc + 2) % QUEUESIZE;
-		int delaylength = int((delay * SampleRate() + 0.5)) * 2;
-		int rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
-		audio[0] = short(audio[0] * 0 + queue[rdloc++] * 0.5);
-		audio[1] = short(audio[1] * 0 + queue[rdloc] * 0.5);
-		ProcessWriteFrame(audio);
+		m_f = dlg.m_frequency;
+		m_b = dlg.m_bandwidth;
+	
 
-		// The progress control
-		if (!ProcessProgress(double(i) / (delay * SampleRate())))
+		UpdateAllViews(NULL);
+	}// TODO: Add your command handler code here
+}
+
+
+void CAudioProcessDoc::OnResonfilterResonfilter()
+{
+	// TODO: Add your command handler code here
+	double b = 0.01;
+	double f = 0.045351;
+	double r = 1 - b / 2.0f;
+	double pi = 3.1415926;
+	double theta = acos((2 * r * cos(2 * pi * f)) / (1 + r * r));
+	double A = (1 - r * r) * sin(theta) * 10;
+	if (!ProcessBegin())
+		return;
+	short audio[2];
+	const int QUEUESIZE = int(SampleRate() * 20);
+	vector<short> queueX, queueY;
+	queueX.resize(QUEUESIZE);
+	queueY.resize(QUEUESIZE);
+	int wrloc = 0;
+	double time = 0;
+	for (int i = 0; i < SampleFrames(); i++, time += 1. / SampleRate())
+	{
+		ProcessReadFrame(audio);
+
+		wrloc = (wrloc + 2) % QUEUESIZE;
+		queueX[wrloc] = audio[0];
+		queueX[wrloc + 1] = audio[1];
+		audio[0] = 0;
+		audio[1] = 0;
+		int delaylength = 0;
+		int rdloc = 0;
+		int temp[2];
+		temp[0] = 0;
+		temp[1] = 0;
+
+		delaylength = 0 * 2;
+		rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
+		temp[0] += int(queueX[rdloc] * A);
+		temp[1] += int(queueX[rdloc + 1] * A);
+
+		delaylength = 1 * 2;
+		rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
+		temp[0] += int(queueY[rdloc] * 2 * r * cos(theta));
+		temp[1] += int(queueY[rdloc + 1] * 2 * r * cos(theta));
+
+		delaylength = 2 * 2;
+		rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
+		temp[0] += int(queueY[rdloc] * (-r * r));
+		temp[1] += int(queueY[rdloc + 1] * (-r * r));
+		if (temp[0] > 32767)
+			audio[0] = 32767;
+		if (temp[0] < -32768)
+			audio[0] = -32768;
+		else
+			audio[0] = short(temp[0]);
+		if (temp[1] > 32767)
+			audio[1] = 32767;
+		if (temp[1] < -32768)
+			audio[1] = -32768;
+		else
+			audio[1] = short(temp[1]);
+		
+		
+		queueY[wrloc] = audio[0];
+		queueY[wrloc + 1] = audio[1];
+
+		ProcessWriteFrame(audio);
+		if (!ProcessProgress(double(i) / SampleFrames()))
 			break;
 	}
-
-	ProcessEnd();// TODO: Add your command handler code here
+	ProcessEnd();
 }

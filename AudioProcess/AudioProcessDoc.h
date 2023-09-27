@@ -83,6 +83,8 @@ private:
 	};
 	std::list<FTerm> m_xterms;
 	std::list<FTerm> m_yterms;
+	double m_f = 0;
+	double m_b = 0;
 public:
 	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
 	afx_msg void OnProcessFileoutput();
@@ -99,4 +101,6 @@ public:
 	afx_msg void OnBackwardsBackwards();
 	afx_msg void OnTransferloadTransferload();
 	afx_msg void OnFilterFilter();
+	afx_msg void OnResondialogResondialog();
+	afx_msg void OnResonfilterResonfilter();
 };

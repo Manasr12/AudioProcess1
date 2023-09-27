@@ -123,6 +123,7 @@
     <ClInclude Include="audio\WaveformBuffer.h" />
     <ClInclude Include="audio\WaveformWnd.h" />
     <ClInclude Include="ChildFrm.h" />
+    <ClInclude Include="filterdialog.h" />
     <ClInclude Include="GenerateDlg.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="ProcessDlg.h" />
@@ -145,6 +146,7 @@
     <ClCompile Include="audio\WaveformBuffer.cpp" />
     <ClCompile Include="audio\WaveformWnd.cpp" />
     <ClCompile Include="ChildFrm.cpp" />
+    <ClCompile Include="filterdialog.cpp" />
     <ClCompile Include="GenerateDlg.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="ProcessDlg.cpp" />
