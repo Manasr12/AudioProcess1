@@ -653,8 +653,9 @@ void CAudioProcessDoc::OnFilterFilter()
 	
 	const int qLength = static_cast<int>(SampleRate() * 20);
 	std::vector<short> qX(qLength), qY(qLength);
-	int writeIndex = 0;
 	double currentTime = 0.0;
+	int writeIndex = 0;
+
 
 	int i = 0;
 	while (i < SampleFrames())
@@ -677,6 +678,14 @@ void CAudioProcessDoc::OnFilterFilter()
 
 		while (xTermIter != m_xterms.end() || yTermIter != m_yterms.end())
 		{
+			if (yTermIter != m_yterms.end())
+			{
+				int delayLength = int(yTermIter->m_delay) * 2;
+				int eq = (writeIndex + qLength - delayLength) % qLength;
+				tempVar[0] = tempVar[0] + int(qY[eq] * yTermIter->m_weight);
+				tempVar[1] = tempVar[1] + int(qY[eq + 1] * yTermIter->m_weight);
+				yTermIter++;
+			}
 			if (xTermIter != m_xterms.end())
 			{
 				int delayLength = int(xTermIter->m_delay) * 2;
@@ -686,14 +695,7 @@ void CAudioProcessDoc::OnFilterFilter()
 				xTermIter++;
 			}
 
-			if (yTermIter != m_yterms.end())
-			{
-				int delayLength = int(yTermIter->m_delay) * 2;
-				int eq = (writeIndex + qLength - delayLength) % qLength;
-				tempVar[0] = tempVar[0] + int(qY[eq] * yTermIter->m_weight);
-				tempVar[1] = tempVar[1] + int(qY[eq + 1] * yTermIter->m_weight);
-				yTermIter++;
-			}
+			
 		}
 
 		sound[0] = short(float(tempVar[0]));
@@ -737,32 +739,32 @@ void CAudioProcessDoc::OnResondialogResondialog()
 
 void CAudioProcessDoc::OnResonfilterResonfilter()
 {
-	double bandwidth = 0.01;
-	double frequency = 0.045351;
-	double dampingFactor = 1 - bandwidth / 2.0f;
-	double pi = 3.1415926;
-	double phaseAngle = acos((2 * dampingFactor * cos(2 * pi * frequency)) / (1 + dampingFactor * dampingFactor));
-	double amplificationFactor = (1 - dampingFactor * dampingFactor) * sin(phaseAngle) * 10;
+	double frequency = m_f;
+	double bandwidth = m_b;
+
+	double dampingFactor = 1 - bandwidth / 2.0;
+	double phaseAngle = acos((2 * dampingFactor * cos(2 * 3.1415926 * frequency)) / (1 + dampingFactor * dampingFactor));
+	double amplificationFactor = (1 - dampingFactor * dampingFactor) * sin(phaseAngle);
 
 	if (!ProcessBegin())
 		return;
 
 	short audio[2];
-	const int QUEUE_SIZE = int(SampleRate() * 20);
-	vector<short> inputQueue, outputQueue;
-	inputQueue.resize(QUEUE_SIZE);
-	outputQueue.resize(QUEUE_SIZE);
+	const int qLength = static_cast<int>(SampleRate() * 20);
+	std::vector<short> qX(qLength), qY(qLength);
+	
+	double currentTime = 0.0;
 
 	int writeLocation = 0;
-	double time = 0;
+	int frameIndex = 0;
 
-	for (int frameIndex = 0; frameIndex < SampleFrames(); frameIndex++, time += 1. / SampleRate())
+	while (frameIndex < SampleFrames())
 	{
 		ProcessReadFrame(audio);
 
-		writeLocation = (writeLocation + 2) % QUEUE_SIZE;
-		inputQueue[writeLocation] = audio[0];
-		inputQueue[writeLocation + 1] = audio[1];
+		writeLocation = (writeLocation + 2) % qLength;
+		qX[writeLocation] = audio[0];
+		qX[writeLocation + 1] = audio[1];
 		audio[0] = 0;
 		audio[1] = 0;
 
@@ -774,22 +776,23 @@ void CAudioProcessDoc::OnResonfilterResonfilter()
 		while (delayIndex < 3)
 		{
 			int delayLength = delayIndex * 2;
-			int readLocation = (writeLocation + QUEUE_SIZE - delayLength) % QUEUE_SIZE;
+			int readLocation = (writeLocation + qLength - delayLength) % qLength;
 
-			if (delayIndex == 0)
+			if (delayIndex == 2)
 			{
-				temp[0] += int(inputQueue[readLocation] * amplificationFactor);
-				temp[1] += int(inputQueue[readLocation + 1] * amplificationFactor);
+				temp[0] += int(qY[readLocation] * (-dampingFactor * dampingFactor));
+				temp[1] += int(qY[readLocation + 1] * (-dampingFactor * dampingFactor));
 			}
 			else if (delayIndex == 1)
 			{
-				temp[0] += int(outputQueue[readLocation] * 2 * dampingFactor * cos(phaseAngle));
-				temp[1] += int(outputQueue[readLocation + 1] * 2 * dampingFactor * cos(phaseAngle));
+				temp[0] += int(qY[readLocation] * 2 * dampingFactor * cos(phaseAngle));
+				temp[1] += int(qY[readLocation + 1] * 2 * dampingFactor * cos(phaseAngle));
 			}
-			else if (delayIndex == 2)
+			else if (delayIndex == 0)
 			{
-				temp[0] += int(outputQueue[readLocation] * (-dampingFactor * dampingFactor));
-				temp[1] += int(outputQueue[readLocation + 1] * (-dampingFactor * dampingFactor));
+				temp[0] += int(qX[readLocation] * amplificationFactor);
+				temp[1] += int(qX[readLocation + 1] * amplificationFactor);
+				
 			}
 
 			delayIndex++;
@@ -809,13 +812,16 @@ void CAudioProcessDoc::OnResonfilterResonfilter()
 		else
 			audio[1] = short(temp[1]);
 
-		outputQueue[writeLocation] = audio[0];
-		outputQueue[writeLocation + 1] = audio[1];
+		qY[writeLocation] = audio[0];
+		qY[writeLocation + 1] = audio[1];
 
 		ProcessWriteFrame(audio);
 		if (!ProcessProgress(double(frameIndex) / SampleFrames()))
 			break;
+
+		frameIndex++;
 	}
 
 	ProcessEnd();
 }
+
