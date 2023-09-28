@@ -650,25 +650,25 @@ void CAudioProcessDoc::OnFilterFilter()
 	if (!ProcessBegin())
 		return;
 
-	short sound[2];
-	int tempVar[2];
-	const int QUEUE_LENGTH = int(SampleRate() * 20);
-	std::vector<short> bufferX, bufferY;
-	bufferX.resize(QUEUE_LENGTH);
-	bufferY.resize(QUEUE_LENGTH);
-	int writeLoc = 0;
-	double timeVar = 0;
+	
+	const int qLength = static_cast<int>(SampleRate() * 20);
+	std::vector<short> qX(qLength), qY(qLength);
+	int writeIndex = 0;
+	double currentTime = 0.0;
 
 	int i = 0;
 	while (i < SampleFrames())
 	{
+		short sound[2];
 		ProcessReadFrame(sound);
 
-		writeLoc = (writeLoc + 2) % QUEUE_LENGTH;
-		bufferX[writeLoc] = sound[0] * m_amplitude;
-		bufferX[writeLoc + 1] = sound[1] * m_amplitude;
+		writeIndex = (writeIndex + 2) % qLength;
+		qX[writeIndex] = sound[0] * m_amplitude;
+		qX[writeIndex + 1] = sound[1] * m_amplitude;
+	
 		sound[0] = 0;
 		sound[1] = 0;
+		int tempVar[2];
 		tempVar[0] = 0;
 		tempVar[1] = 0;
 
@@ -680,26 +680,26 @@ void CAudioProcessDoc::OnFilterFilter()
 			if (xTermIter != m_xterms.end())
 			{
 				int delayLength = int(xTermIter->m_delay) * 2;
-				int readLoc = (writeLoc + QUEUE_LENGTH - delayLength) % QUEUE_LENGTH;
-				tempVar[0] += int(bufferX[readLoc] * xTermIter->m_weight);
-				tempVar[1] += int(bufferX[readLoc + 1] * xTermIter->m_weight);
+				int eq = (writeIndex + qLength - delayLength) % qLength;
+				tempVar[0] = tempVar[0] + int(qX[eq] * xTermIter->m_weight);
+				tempVar[1] = tempVar[1] + int(qX[eq + 1] * xTermIter->m_weight);
 				xTermIter++;
 			}
 
 			if (yTermIter != m_yterms.end())
 			{
 				int delayLength = int(yTermIter->m_delay) * 2;
-				int readLoc = (writeLoc + QUEUE_LENGTH - delayLength) % QUEUE_LENGTH;
-				tempVar[0] += int(bufferY[readLoc] * yTermIter->m_weight);
-				tempVar[1] += int(bufferY[readLoc + 1] * yTermIter->m_weight);
+				int eq = (writeIndex + qLength - delayLength) % qLength;
+				tempVar[0] = tempVar[0] + int(qY[eq] * yTermIter->m_weight);
+				tempVar[1] = tempVar[1] + int(qY[eq + 1] * yTermIter->m_weight);
 				yTermIter++;
 			}
 		}
 
 		sound[0] = short(float(tempVar[0]));
 		sound[1] = short(float(tempVar[1]));
-		bufferY[writeLoc] = sound[0];
-		bufferY[writeLoc + 1] = sound[1];
+		qY[writeIndex] = sound[0];
+		qY[writeIndex + 1] = sound[1];
 
 		ProcessWriteFrame(sound);
 
@@ -707,7 +707,7 @@ void CAudioProcessDoc::OnFilterFilter()
 			break;
 
 		i++;
-		timeVar += 1. / SampleRate();
+		currentTime += 1. / SampleRate();
 	}
 
 	ProcessEnd();
@@ -737,71 +737,85 @@ void CAudioProcessDoc::OnResondialogResondialog()
 
 void CAudioProcessDoc::OnResonfilterResonfilter()
 {
-	// TODO: Add your command handler code here
-	double b = 0.01;
-	double f = 0.045351;
-	double r = 1 - b / 2.0f;
+	double bandwidth = 0.01;
+	double frequency = 0.045351;
+	double dampingFactor = 1 - bandwidth / 2.0f;
 	double pi = 3.1415926;
-	double theta = acos((2 * r * cos(2 * pi * f)) / (1 + r * r));
-	double A = (1 - r * r) * sin(theta) * 10;
+	double phaseAngle = acos((2 * dampingFactor * cos(2 * pi * frequency)) / (1 + dampingFactor * dampingFactor));
+	double amplificationFactor = (1 - dampingFactor * dampingFactor) * sin(phaseAngle) * 10;
+
 	if (!ProcessBegin())
 		return;
+
 	short audio[2];
-	const int QUEUESIZE = int(SampleRate() * 20);
-	vector<short> queueX, queueY;
-	queueX.resize(QUEUESIZE);
-	queueY.resize(QUEUESIZE);
-	int wrloc = 0;
+	const int QUEUE_SIZE = int(SampleRate() * 20);
+	vector<short> inputQueue, outputQueue;
+	inputQueue.resize(QUEUE_SIZE);
+	outputQueue.resize(QUEUE_SIZE);
+
+	int writeLocation = 0;
 	double time = 0;
-	for (int i = 0; i < SampleFrames(); i++, time += 1. / SampleRate())
+
+	for (int frameIndex = 0; frameIndex < SampleFrames(); frameIndex++, time += 1. / SampleRate())
 	{
 		ProcessReadFrame(audio);
 
-		wrloc = (wrloc + 2) % QUEUESIZE;
-		queueX[wrloc] = audio[0];
-		queueX[wrloc + 1] = audio[1];
+		writeLocation = (writeLocation + 2) % QUEUE_SIZE;
+		inputQueue[writeLocation] = audio[0];
+		inputQueue[writeLocation + 1] = audio[1];
 		audio[0] = 0;
 		audio[1] = 0;
-		int delaylength = 0;
-		int rdloc = 0;
+
 		int temp[2];
 		temp[0] = 0;
 		temp[1] = 0;
 
-		delaylength = 0 * 2;
-		rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
-		temp[0] += int(queueX[rdloc] * A);
-		temp[1] += int(queueX[rdloc + 1] * A);
+		int delayIndex = 0;
+		while (delayIndex < 3)
+		{
+			int delayLength = delayIndex * 2;
+			int readLocation = (writeLocation + QUEUE_SIZE - delayLength) % QUEUE_SIZE;
 
-		delaylength = 1 * 2;
-		rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
-		temp[0] += int(queueY[rdloc] * 2 * r * cos(theta));
-		temp[1] += int(queueY[rdloc + 1] * 2 * r * cos(theta));
+			if (delayIndex == 0)
+			{
+				temp[0] += int(inputQueue[readLocation] * amplificationFactor);
+				temp[1] += int(inputQueue[readLocation + 1] * amplificationFactor);
+			}
+			else if (delayIndex == 1)
+			{
+				temp[0] += int(outputQueue[readLocation] * 2 * dampingFactor * cos(phaseAngle));
+				temp[1] += int(outputQueue[readLocation + 1] * 2 * dampingFactor * cos(phaseAngle));
+			}
+			else if (delayIndex == 2)
+			{
+				temp[0] += int(outputQueue[readLocation] * (-dampingFactor * dampingFactor));
+				temp[1] += int(outputQueue[readLocation + 1] * (-dampingFactor * dampingFactor));
+			}
 
-		delaylength = 2 * 2;
-		rdloc = (wrloc + QUEUESIZE - delaylength) % QUEUESIZE;
-		temp[0] += int(queueY[rdloc] * (-r * r));
-		temp[1] += int(queueY[rdloc + 1] * (-r * r));
+			delayIndex++;
+		}
+
 		if (temp[0] > 32767)
 			audio[0] = 32767;
-		if (temp[0] < -32768)
+		else if (temp[0] < -32768)
 			audio[0] = -32768;
 		else
 			audio[0] = short(temp[0]);
+
 		if (temp[1] > 32767)
 			audio[1] = 32767;
-		if (temp[1] < -32768)
+		else if (temp[1] < -32768)
 			audio[1] = -32768;
 		else
 			audio[1] = short(temp[1]);
-		
-		
-		queueY[wrloc] = audio[0];
-		queueY[wrloc + 1] = audio[1];
+
+		outputQueue[writeLocation] = audio[0];
+		outputQueue[writeLocation + 1] = audio[1];
 
 		ProcessWriteFrame(audio);
-		if (!ProcessProgress(double(i) / SampleFrames()))
+		if (!ProcessProgress(double(frameIndex) / SampleFrames()))
 			break;
 	}
+
 	ProcessEnd();
 }
